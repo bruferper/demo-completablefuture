@@ -7,9 +7,12 @@ import com.bfz.completablefuture.application.port.out.repository.OrderRepository
 import com.bfz.completablefuture.domain.model.Inventory;
 import com.bfz.completablefuture.domain.model.Order;
 import com.bfz.completablefuture.domain.model.Product;
+import com.bfz.completablefuture.domain.model.ProductDetail;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
+import java.util.concurrent.CompletableFuture;
 
 
 @Service
@@ -24,13 +27,22 @@ public class CreateOrderUseCaseImpl implements CreateOrderUseCase {
     @Override
     public void createOrder(Long productId, Integer quantity) {
         log.info("Creating order...");
-        Inventory inventory = inventoryService.findByProductId(productId);
-        if(!inventory.hasStockAvailable(quantity)) throw new RuntimeException("No stock available");
-        Product product = productService.findById(productId);
-        Integer totalPrice = quantity * product.price();
+        ProductDetail productDetail = findProductDetail(productId);
+        if(!productDetail.inventory().hasStockAvailable(quantity)) throw new RuntimeException("No stock available");
+        Integer totalPrice = quantity * productDetail.product().price();
         Order order = new Order(1L, totalPrice);
         orderRepository.create(order);
         log.info("Order with ID {} has been created", order.id());
+    }
+
+    private ProductDetail findProductDetail(Long productId) {
+        CompletableFuture<Inventory> inventoryFuture = CompletableFuture
+                .supplyAsync(() -> inventoryService.findByProductId(productId));
+        CompletableFuture<Product> productFuture = CompletableFuture
+                .supplyAsync(() -> productService.findById(productId));
+        return inventoryFuture
+                .thenCombine(productFuture, (inventory, product) -> new ProductDetail(product, inventory))
+                .join();
     }
 
 }

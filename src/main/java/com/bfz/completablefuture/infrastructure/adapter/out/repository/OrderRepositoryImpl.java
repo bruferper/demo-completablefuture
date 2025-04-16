@@ -11,7 +11,7 @@ public class OrderRepositoryImpl implements OrderRepository {
 
     @Override
     public void create(Order order) {
-        log.info("Saving offer with ID {} in the database...", order.id());
+        log.info("Saving offer with ID {} and totalPrice {} in the database...", order.id(), order.totalPrice());
     }
 
 }
