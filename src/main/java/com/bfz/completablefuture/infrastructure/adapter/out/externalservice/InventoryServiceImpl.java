@@ -14,6 +14,7 @@ public class InventoryServiceImpl implements InventoryService {
         log.info("Call to inventory service... ");
         try {
             Thread.sleep(1000); // Simulating a network delay
+            if(id == 10) throw new RuntimeException("Error getting inventory for Product ID " + id);
             return new Inventory(1L, 10);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);

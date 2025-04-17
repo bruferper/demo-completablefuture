@@ -14,6 +14,7 @@ public class ProductServiceImpl implements ProductService {
         log.info("Call to product service... ");
         try {
             Thread.sleep(1500); // Simulating a network delay
+            if(id == 10) throw new RuntimeException("Error getting product for Product ID " + id);
             return new Product(1L, "Demo Product", 100);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);

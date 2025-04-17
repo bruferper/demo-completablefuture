@@ -4,6 +4,7 @@ import com.bfz.completablefuture.application.port.in.CreateOrderUseCase;
 import com.bfz.completablefuture.application.port.out.externalservice.InventoryService;
 import com.bfz.completablefuture.application.port.out.externalservice.ProductService;
 import com.bfz.completablefuture.application.port.out.repository.OrderRepository;
+import com.bfz.completablefuture.domain.exception.InsufficientStockException;
 import com.bfz.completablefuture.domain.model.Inventory;
 import com.bfz.completablefuture.domain.model.Order;
 import com.bfz.completablefuture.domain.model.Product;
@@ -28,7 +29,7 @@ public class CreateOrderUseCaseImpl implements CreateOrderUseCase {
     public void createOrder(Long productId, Integer quantity) {
         log.info("Creating order...");
         ProductDetail productDetail = findProductDetail(productId);
-        if(!productDetail.inventory().hasStockAvailable(quantity)) throw new RuntimeException("No stock available");
+        if(!productDetail.inventory().hasStockAvailable(quantity)) throw new InsufficientStockException("No stock available");
         Integer totalPrice = quantity * productDetail.product().price();
         Order order = new Order(1L, totalPrice);
         orderRepository.create(order);
@@ -37,9 +38,17 @@ public class CreateOrderUseCaseImpl implements CreateOrderUseCase {
 
     private ProductDetail findProductDetail(Long productId) {
         CompletableFuture<Inventory> inventoryFuture = CompletableFuture
-                .supplyAsync(() -> inventoryService.findByProductId(productId));
+                .supplyAsync(() -> inventoryService.findByProductId(productId))
+                .exceptionally(ex -> {
+                    log.error(ex.getMessage());
+                    return new Inventory(0L, 0);
+                });
         CompletableFuture<Product> productFuture = CompletableFuture
-                .supplyAsync(() -> productService.findById(productId));
+                .supplyAsync(() -> productService.findById(productId))
+                .exceptionally(ex -> {
+                  log.error(ex.getMessage());
+                  return new Product(0L, "", 0);
+                });
         return inventoryFuture
                 .thenCombine(productFuture, (inventory, product) -> new ProductDetail(product, inventory))
                 .join();
